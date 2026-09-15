@@ -1,0 +1,29 @@
+name: Tailscale VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  vps:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install SSH server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-server
+          sudo systemctl start ssh
+
+      - name: Get Tailscale IP
+        run: |
+          tailscale ip -4
+
+      - name: Keep alive (6 hours)
+        run: sleep 21600
