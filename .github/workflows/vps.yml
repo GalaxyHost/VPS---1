@@ -1,29 +1,49 @@
-name: Tailscale VPS
+name: Temporary Linux Server
 
 on:
   workflow_dispatch:
 
 jobs:
-  vps:
-    runs-on: ubuntu-22.04
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-
-      - name: Install SSH server
+      - name: Update system
         run: |
           sudo apt-get update
           sudo apt-get install -y openssh-server
+
+      - name: Configure SSH
+        run: |
+          sudo systemctl enable ssh
           sudo systemctl start ssh
 
-      - name: Get Tailscale IP
-        run: |
-          tailscale ip -4
+          sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+          sudo sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
-      - name: Keep alive (6 hours)
-        run: sleep 21600
+          sudo systemctl restart ssh
+
+      - name: Add SSH public key
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PUBLIC_KEY" >> ~/.ssh/authorized_keys
+          chmod 600 ~/.ssh/authorized_keys
+
+      - name: Show server information
+        run: |
+          echo "Runner hostname:"
+          hostname
+          echo "Runner IP:"
+          curl -4 https://api.ipify.org
+          echo
+
+      - name: Keep runner alive
+        run: |
+          while true; do
+            echo "Server is running: $(date)"
+            sleep 60
+          done
